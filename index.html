@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colony Selection Simulation</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #4fc3f7;
+        }
+
+        .instructions {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #b0bec5;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .generation-display {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #4fc3f7;
+            margin: 10px 0 20px 0;
+        }
+
+        .game-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .section-label {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #81d4fa;
+        }
+
+        /* Shelf styling */
+        .shelf {
+            width: 280px;
+            min-height: 400px;
+            background: linear-gradient(145deg, #3d2b1f 0%, #2a1f17 100%);
+            border: 4px solid #5d4037;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 10px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 4px 15px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .shelf::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(to bottom, #5d4037, #3e2723);
+            border-radius: 0 0 4px 4px;
+        }
+
+        .shelf.highlight {
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 30px rgba(79, 195, 247, 0.6);
+            border-color: #4fc3f7;
+        }
+
+        /* Plate (colony) styling */
+        .plate {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+            user-select: none;
+            border: 3px solid rgba(255,255,255,0.3);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .plate:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255,255,255,0.5);
+        }
+
+        .plate.dragging {
+            cursor: grabbing;
+            opacity: 0.8;
+        }
+
+        .plate.measured {
+            border: 3px solid #fff;
+        }
+
+        .plate.selected {
+            box-shadow: 0 0 20px #ffeb3b, 0 0 30px #ffeb3b;
+        }
+
+        .plate.queued {
+            box-shadow: 0 0 20px #4fc3f7, 0 0 30px #4fc3f7;
+        }
+
+        /* Equipment styling */
+        .equipment-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .equipment {
+            width: 180px;
+            height: 160px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 10px;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .equipment.highlight {
+            transform: scale(1.05);
+        }
+
+        .incubator {
+            background: linear-gradient(145deg, #ff7043 0%, #d84315 100%);
+            border: 3px solid #ff8a65;
+            box-shadow: 0 0 20px rgba(255, 112, 67, 0.4);
+        }
+
+        .incubator.highlight {
+            box-shadow: 0 0 30px rgba(255, 112, 67, 0.8);
+        }
+
+        .measurer {
+            background: linear-gradient(145deg, #66bb6a 0%, #388e3c 100%);
+            border: 3px solid #81c784;
+            box-shadow: 0 0 20px rgba(102, 187, 106, 0.4);
+        }
+
+        .measurer.highlight {
+            box-shadow: 0 0 30px rgba(102, 187, 106, 0.8);
+        }
+
+        .equipment-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.9);
+            margin-top: 5px;
+        }
+
+        .equipment-icon {
+            font-size: 32px;
+        }
+
+        .equipment-slots {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 10px;
+            min-height: 50px;
+            padding: 5px;
+        }
+
+        .plate-in-equipment {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #fff;
+            position: relative;
+            cursor: grab;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .plate-in-equipment:hover {
+            transform: scale(1.1);
+        }
+
+        .progress-ring {
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            width: 48px;
+            height: 48px;
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke-width: 3;
+        }
+
+        .progress-ring .bg {
+            stroke: rgba(255,255,255,0.3);
+        }
+
+        .progress-ring .progress {
+            stroke: #fff;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 0.1s;
+        }
+
+        .ready-indicator {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 18px;
+            height: 18px;
+            background: #4caf50;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        /* Right section with shelf and button */
+        .right-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .breed-btn {
+            margin-top: 20px;
+            padding: 20px 40px;
+            font-size: 20px;
+            background: linear-gradient(145deg, #4fc3f7 0%, #0288d1 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(79, 195, 247, 0.4);
+            width: 100%;
+        }
+
+        .breed-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 195, 247, 0.6);
+        }
+
+        .breed-btn:disabled {
+            background: linear-gradient(145deg, #78909c 0%, #546e7a 100%);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .start-auto-btn {
+            margin-top: 15px;
+            padding: 15px 30px;
+            font-size: 16px;
+            background: linear-gradient(145deg, #ab47bc 0%, #7b1fa2 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(171, 71, 188, 0.4);
+            width: 100%;
+        }
+
+        .start-auto-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(171, 71, 188, 0.6);
+        }
+
+        .start-auto-btn:disabled {
+            background: linear-gradient(145deg, #78909c 0%, #546e7a 100%);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .history-panel {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 15px;
+            width: 200px;
+            min-height: 400px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-entry {
+            font-size: 12px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .queue-counter {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #4fc3f7;
+        }
+
+        .condition-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .condition-badge.manual {
+            background: #ff7043;
+        }
+
+        .condition-badge.automated {
+            background: #ab47bc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Colony Selection Simulation <span class="condition-badge" id="condition-badge">Manual</span></h1>
+    <p class="instructions" id="instructions">
+        Drag plates from the shelf into the incubator. After incubation, drag them to the measurer.
+        Then drag measured plates to the right shelf. Click to select the best ones for breeding!
+    </p>
+
+    <div class="generation-display">Generation: <span id="generation">1</span></div>
+
+    <div class="game-container">
+        <!-- Left Shelf: Unmeasured plates -->
+        <div class="section">
+            <div class="section-label">Plate Shelf</div>
+            <div class="shelf" id="left-shelf">
+                <!-- Plates will be generated here -->
+            </div>
+            <div class="queue-counter" id="queue-counter" style="display: none;">
+                Selected: <span id="queue-count">0</span> (up to 5)
+            </div>
+            <button class="start-auto-btn" id="start-auto-btn" style="display: none;" disabled>
+                Start Automated Experiment
+            </button>
+        </div>
+
+        <!-- Middle: Equipment -->
+        <div class="equipment-column">
+            <div class="section">
+                <div class="section-label">Incubator</div>
+                <div class="equipment incubator" id="incubator">
+                    <div class="equipment-icon">🔥</div>
+                    <div class="equipment-label">Drop plates here</div>
+                    <div class="equipment-slots" id="incubator-slots"></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-label">Measurer</div>
+                <div class="equipment measurer" id="measurer">
+                    <div class="equipment-icon">📊</div>
+                    <div class="equipment-label">Drop incubated plates</div>
+                    <div class="equipment-slots" id="measurer-slots"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Shelf: Measured plates -->
+        <div class="right-section">
+            <div class="section">
+                <div class="section-label">Measured Plates</div>
+                <div class="shelf" id="right-shelf">
+                    <!-- Measured plates go here -->
+                </div>
+                <button class="breed-btn" id="breed-btn" disabled>Breed Selected (0)</button>
+            </div>
+        </div>
+
+        <!-- History Panel -->
+        <div class="section">
+            <div class="section-label">Generation History</div>
+            <div class="history-panel">
+                <div id="history"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get condition from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const condition = urlParams.get('condition') || 'manual';
+        const isAutomated = condition === 'automated';
+
+        // Game state
+        let colonies = [];
+        let generation = 1;
+        let colonyIdCounter = 0;
+        let generationHistory = [];
+        let queuedForExperiment = [];
+
+        // Configuration
+        const INCUBATION_TIME = 3000; // 3 seconds
+        const INITIAL_COLONY_COUNT = 12;
+        const EXPERIMENT_PLATE_COUNT = 5;
+
+        // DOM elements
+        const leftShelf = document.getElementById('left-shelf');
+        const rightShelf = document.getElementById('right-shelf');
+        const incubator = document.getElementById('incubator');
+        const measurer = document.getElementById('measurer');
+        const incubatorSlots = document.getElementById('incubator-slots');
+        const measurerSlots = document.getElementById('measurer-slots');
+        const breedBtn = document.getElementById('breed-btn');
+        const startAutoBtn = document.getElementById('start-auto-btn');
+        const queueCounter = document.getElementById('queue-counter');
+        const queueCount = document.getElementById('queue-count');
+        const conditionBadge = document.getElementById('condition-badge');
+        const instructionsEl = document.getElementById('instructions');
+
+        // Setup UI based on condition
+        function setupConditionUI() {
+            if (isAutomated) {
+                conditionBadge.textContent = 'Automated';
+                conditionBadge.className = 'condition-badge automated';
+                instructionsEl.textContent = 'Click to select 5 plates for the experiment, then click "Start Automated Experiment". The system will automatically incubate, measure, and select the top 5 for breeding.';
+                startAutoBtn.style.display = 'block';
+                queueCounter.style.display = 'block';
+            } else {
+                conditionBadge.textContent = 'Manual';
+                conditionBadge.className = 'condition-badge manual';
+            }
+        }
+
+        // Initialize the game
+        function init() {
+            colonies = [];
+            colonyIdCounter = 0;
+            queuedForExperiment = [];
+            leftShelf.innerHTML = '';
+            rightShelf.innerHTML = '';
+            incubatorSlots.innerHTML = '';
+            measurerSlots.innerHTML = '';
+
+            // Generate initial plates with random trait values
+            for (let i = 0; i < INITIAL_COLONY_COUNT; i++) {
+                createPlate(null);
+            }
+
+            updateQueueCounter();
+            updateBreedButton();
+        }
+
+        // Create a new plate
+        function createPlate(parentTraitValue) {
+            const id = colonyIdCounter++;
+
+            // Trait value: either random (gen 1) or inherited with mutation
+            let traitValue;
+            if (parentTraitValue === null) {
+                traitValue = Math.random() * 50 + 25; // 25-75 for gen 1
+            } else {
+                // Inherit from parent with some mutation
+                const mutation = (Math.random() - 0.5) * 20;
+                traitValue = Math.max(0, Math.min(100, parentTraitValue + mutation));
+            }
+
+            const colony = {
+                id,
+                traitValue,
+                measured: false,
+                incubated: false,
+                selected: false,
+                queued: false,
+                element: null
+            };
+
+            colonies.push(colony);
+
+            // Create DOM element
+            const el = document.createElement('div');
+            el.className = 'plate';
+            el.dataset.id = id;
+
+            // Color based on trait value (hidden until measured - use blue-ish)
+            const hue = 200 + Math.random() * 40;
+            el.style.background = `radial-gradient(circle at 30% 30%, hsl(${hue}, 60%, 60%), hsl(${hue}, 70%, 40%))`;
+
+            colony.element = el;
+            leftShelf.appendChild(el);
+
+            if (isAutomated) {
+                setupAutomatedPlateClick(el, colony);
+            } else {
+                setupPlateDrag(el, colony);
+            }
+
+            return colony;
+        }
+
+        // Setup click to queue for automated experiment
+        function setupAutomatedPlateClick(el, colony) {
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', () => {
+                if (colony.incubated || colony.measured) return;
+
+                if (colony.queued) {
+                    // Dequeue
+                    colony.queued = false;
+                    el.classList.remove('queued');
+                    queuedForExperiment = queuedForExperiment.filter(c => c.id !== colony.id);
+                } else if (queuedForExperiment.length < EXPERIMENT_PLATE_COUNT) {
+                    // Queue
+                    colony.queued = true;
+                    el.classList.add('queued');
+                    queuedForExperiment.push(colony);
+                }
+
+                updateQueueCounter();
+            });
+        }
+
+        function getIncubatorCount() {
+            return incubatorSlots.children.length;
+        }
+
+        function updateQueueCounter() {
+            if (!isAutomated) return;
+            queueCount.textContent = queuedForExperiment.length;
+
+            const incubatorCount = getIncubatorCount();
+            const canStart = queuedForExperiment.length > 0 && incubatorCount < EXPERIMENT_PLATE_COUNT;
+            startAutoBtn.disabled = !canStart;
+
+            if (incubatorCount >= EXPERIMENT_PLATE_COUNT) {
+                startAutoBtn.textContent = 'Incubator Full - Please Wait';
+            } else {
+                startAutoBtn.textContent = 'Start Automated Experiment';
+            }
+        }
+
+        // Start automated experiment
+        async function startAutomatedExperiment() {
+            if (queuedForExperiment.length === 0) return;
+            if (getIncubatorCount() >= EXPERIMENT_PLATE_COUNT) return;
+
+            startAutoBtn.disabled = true;
+
+            // Move all queued plates to incubator
+            const platesToProcess = [...queuedForExperiment];
+            queuedForExperiment = [];
+
+            for (const colony of platesToProcess) {
+                colony.queued = false;
+                addToIncubatorAutomated(colony);
+            }
+
+            // Update button state now that incubator may be full
+            updateQueueCounter();
+
+            // Wait for incubation
+            await delay(INCUBATION_TIME + 500);
+
+            // Move to measurer one by one
+            for (const colony of platesToProcess) {
+                measurePlateAutomated(colony);
+                await delay(300);
+            }
+
+            // Wait a moment
+            await delay(500);
+
+            // Move to right shelf
+            for (const colony of platesToProcess) {
+                moveToRightShelfAutomated(colony);
+                await delay(300);
+            }
+
+            // Wait a moment
+            await delay(500);
+
+            // Sort plates high to low
+            sortMeasuredPlates();
+
+            updateQueueCounter();
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function addToIncubatorAutomated(colony) {
+            const oldBg = colony.element.style.background;
+            colony.element.remove();
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'plate-in-equipment';
+            wrapper.style.background = oldBg;
+            wrapper.dataset.id = colony.id;
+
+            const ring = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            ring.classList.add('progress-ring');
+            ring.innerHTML = `
+                <circle class="bg" cx="24" cy="24" r="20"/>
+                <circle class="progress" cx="24" cy="24" r="20"
+                    stroke-dasharray="125.7" stroke-dashoffset="125.7"/>
+            `;
+            wrapper.appendChild(ring);
+
+            incubatorSlots.appendChild(wrapper);
+            colony.element = wrapper;
+
+            const startTime = Date.now();
+            const progressCircle = ring.querySelector('.progress');
+
+            const updateProgress = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / INCUBATION_TIME, 1);
+                const offset = 125.7 * (1 - progress);
+                progressCircle.style.strokeDashoffset = offset;
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateProgress);
+                } else {
+                    colony.incubated = true;
+                    ring.remove();
+
+                    const ready = document.createElement('div');
+                    ready.className = 'ready-indicator';
+                    ready.textContent = '✓';
+                    wrapper.appendChild(ready);
+                }
+            };
+
+            requestAnimationFrame(updateProgress);
+        }
+
+        function measurePlateAutomated(colony) {
+            colony.measured = true;
+            colony.element.remove();
+
+            // Update button state since incubator now has space
+            updateQueueCounter();
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'plate-in-equipment measured';
+
+            const hue = (colony.traitValue / 100) * 120;
+            wrapper.style.background = `radial-gradient(circle at 30% 30%, hsl(${hue}, 60%, 60%), hsl(${hue}, 70%, 40%))`;
+            wrapper.style.border = '2px solid #fff';
+            wrapper.textContent = colony.traitValue.toFixed(0);
+            wrapper.dataset.id = colony.id;
+
+            measurerSlots.appendChild(wrapper);
+            colony.element = wrapper;
+        }
+
+        function moveToRightShelfAutomated(colony) {
+            colony.element.remove();
+
+            const el = document.createElement('div');
+            el.className = 'plate measured';
+            el.dataset.id = colony.id;
+
+            const hue = (colony.traitValue / 100) * 120;
+            el.style.background = `radial-gradient(circle at 30% 30%, hsl(${hue}, 60%, 60%), hsl(${hue}, 70%, 40%))`;
+            el.textContent = colony.traitValue.toFixed(0);
+
+            colony.element = el;
+            rightShelf.appendChild(el);
+
+            // Allow clicking to toggle selection
+            el.addEventListener('click', () => {
+                colony.selected = !colony.selected;
+                el.classList.toggle('selected', colony.selected);
+                updateBreedButton();
+            });
+        }
+
+        function sortMeasuredPlates() {
+            const measuredColonies = colonies.filter(c => c.measured);
+            measuredColonies.sort((a, b) => b.traitValue - a.traitValue);
+
+            // Re-append elements in sorted order (high to low)
+            for (const colony of measuredColonies) {
+                rightShelf.appendChild(colony.element);
+            }
+
+            updateBreedButton();
+        }
+
+        // Setup drag and drop for a plate on the left shelf (manual mode)
+        function setupPlateDrag(el, colony) {
+            let isDragging = false;
+            let startX, startY, origX, origY;
+
+            el.addEventListener('mousedown', (e) => {
+                if (colony.incubated || colony.measured) return;
+                startDrag(e);
+            });
+
+            function startDrag(e) {
+                // Get position BEFORE adding dragging class
+                const rect = el.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                origX = rect.left;
+                origY = rect.top;
+
+                isDragging = true;
+                el.classList.add('dragging');
+
+                el.style.position = 'fixed';
+                el.style.left = origX + 'px';
+                el.style.top = origY + 'px';
+                el.style.zIndex = 1000;
+
+                document.addEventListener('mousemove', onDrag);
+                document.addEventListener('mouseup', onDrop);
+            }
+
+            function onDrag(e) {
+                if (!isDragging) return;
+
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                el.style.left = (origX + dx) + 'px';
+                el.style.top = (origY + dy) + 'px';
+
+                const incubatorRect = incubator.getBoundingClientRect();
+
+                if (isOverElement(e, incubatorRect)) {
+                    incubator.classList.add('highlight');
+                } else {
+                    incubator.classList.remove('highlight');
+                }
+            }
+
+            function onDrop(e) {
+                if (!isDragging) return;
+                isDragging = false;
+                el.classList.remove('dragging');
+
+                document.removeEventListener('mousemove', onDrag);
+                document.removeEventListener('mouseup', onDrop);
+
+                incubator.classList.remove('highlight');
+
+                const incubatorRect = incubator.getBoundingClientRect();
+
+                if (isOverElement(e, incubatorRect)) {
+                    addToIncubator(colony);
+                } else {
+                    // Return to shelf
+                    el.style.position = '';
+                    el.style.left = '';
+                    el.style.top = '';
+                    el.style.zIndex = '';
+                }
+            }
+        }
+
+        function isOverElement(e, rect) {
+            return e.clientX >= rect.left && e.clientX <= rect.right &&
+                   e.clientY >= rect.top && e.clientY <= rect.bottom;
+        }
+
+        function addToIncubator(colony) {
+            const oldBg = colony.element.style.background;
+            colony.element.remove();
+
+            // Create incubator representation
+            const wrapper = document.createElement('div');
+            wrapper.className = 'plate-in-equipment';
+            wrapper.style.background = oldBg;
+            wrapper.dataset.id = colony.id;
+
+            // Add progress ring
+            const ring = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            ring.classList.add('progress-ring');
+            ring.innerHTML = `
+                <circle class="bg" cx="24" cy="24" r="20"/>
+                <circle class="progress" cx="24" cy="24" r="20"
+                    stroke-dasharray="125.7" stroke-dashoffset="125.7"/>
+            `;
+            wrapper.appendChild(ring);
+
+            incubatorSlots.appendChild(wrapper);
+            colony.element = wrapper;
+
+            // Start incubation timer
+            const startTime = Date.now();
+            const progressCircle = ring.querySelector('.progress');
+
+            const updateProgress = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / INCUBATION_TIME, 1);
+                const offset = 125.7 * (1 - progress);
+                progressCircle.style.strokeDashoffset = offset;
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateProgress);
+                } else {
+                    // Incubation complete
+                    colony.incubated = true;
+                    ring.remove();
+
+                    // Add ready indicator
+                    const ready = document.createElement('div');
+                    ready.className = 'ready-indicator';
+                    ready.textContent = '✓';
+                    wrapper.appendChild(ready);
+
+                    // Setup drag to measurer
+                    setupIncubatedDrag(wrapper, colony);
+                }
+            };
+
+            requestAnimationFrame(updateProgress);
+        }
+
+        function setupIncubatedDrag(el, colony) {
+            let isDragging = false;
+            let startX, startY, origX, origY;
+
+            el.addEventListener('mousedown', (e) => {
+                if (!colony.incubated || colony.measured) return;
+
+                // Get position BEFORE adding dragging class
+                const rect = el.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                origX = rect.left;
+                origY = rect.top;
+
+                isDragging = true;
+                el.classList.add('dragging');
+
+                el.style.position = 'fixed';
+                el.style.left = origX + 'px';
+                el.style.top = origY + 'px';
+                el.style.zIndex = 1000;
+
+                document.addEventListener('mousemove', onDrag);
+                document.addEventListener('mouseup', onDrop);
+            });
+
+            function onDrag(e) {
+                if (!isDragging) return;
+
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                el.style.left = (origX + dx) + 'px';
+                el.style.top = (origY + dy) + 'px';
+
+                const measurerRect = measurer.getBoundingClientRect();
+                if (isOverElement(e, measurerRect)) {
+                    measurer.classList.add('highlight');
+                } else {
+                    measurer.classList.remove('highlight');
+                }
+            }
+
+            function onDrop(e) {
+                if (!isDragging) return;
+                isDragging = false;
+                el.classList.remove('dragging');
+
+                document.removeEventListener('mousemove', onDrag);
+                document.removeEventListener('mouseup', onDrop);
+
+                measurer.classList.remove('highlight');
+
+                const measurerRect = measurer.getBoundingClientRect();
+
+                if (isOverElement(e, measurerRect)) {
+                    measurePlate(colony);
+                } else {
+                    // Return to incubator slot
+                    el.style.position = '';
+                    el.style.left = '';
+                    el.style.top = '';
+                    el.style.zIndex = '';
+                }
+            }
+        }
+
+        function measurePlate(colony) {
+            colony.measured = true;
+            colony.element.remove();
+
+            // Create measured plate in measurer
+            const wrapper = document.createElement('div');
+            wrapper.className = 'plate-in-equipment measured';
+
+            // Color based on trait value (now revealed)
+            const hue = (colony.traitValue / 100) * 120;
+            wrapper.style.background = `radial-gradient(circle at 30% 30%, hsl(${hue}, 60%, 60%), hsl(${hue}, 70%, 40%))`;
+            wrapper.style.border = '2px solid #fff';
+            wrapper.textContent = colony.traitValue.toFixed(0);
+            wrapper.dataset.id = colony.id;
+
+            measurerSlots.appendChild(wrapper);
+            colony.element = wrapper;
+
+            // Setup drag to right shelf
+            setupMeasuredDrag(wrapper, colony);
+        }
+
+        function setupMeasuredDrag(el, colony) {
+            let isDragging = false;
+            let startX, startY, origX, origY;
+
+            el.addEventListener('mousedown', (e) => {
+                // Get position BEFORE adding dragging class
+                const rect = el.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                origX = rect.left;
+                origY = rect.top;
+
+                isDragging = true;
+                el.classList.add('dragging');
+
+                el.style.position = 'fixed';
+                el.style.left = origX + 'px';
+                el.style.top = origY + 'px';
+                el.style.zIndex = 1000;
+
+                document.addEventListener('mousemove', onDrag);
+                document.addEventListener('mouseup', onDrop);
+            });
+
+            function onDrag(e) {
+                if (!isDragging) return;
+
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                el.style.left = (origX + dx) + 'px';
+                el.style.top = (origY + dy) + 'px';
+
+                const shelfRect = rightShelf.getBoundingClientRect();
+                if (isOverElement(e, shelfRect)) {
+                    rightShelf.classList.add('highlight');
+                } else {
+                    rightShelf.classList.remove('highlight');
+                }
+            }
+
+            function onDrop(e) {
+                if (!isDragging) return;
+                isDragging = false;
+                el.classList.remove('dragging');
+
+                document.removeEventListener('mousemove', onDrag);
+                document.removeEventListener('mouseup', onDrop);
+
+                rightShelf.classList.remove('highlight');
+
+                const shelfRect = rightShelf.getBoundingClientRect();
+
+                if (isOverElement(e, shelfRect)) {
+                    moveToRightShelf(colony);
+                } else {
+                    // Return to measurer slot
+                    el.style.position = '';
+                    el.style.left = '';
+                    el.style.top = '';
+                    el.style.zIndex = '';
+                }
+            }
+        }
+
+        function moveToRightShelf(colony) {
+            colony.element.remove();
+
+            // Create plate element for right shelf
+            const el = document.createElement('div');
+            el.className = 'plate measured';
+            el.dataset.id = colony.id;
+
+            // Color based on trait value
+            const hue = (colony.traitValue / 100) * 120;
+            el.style.background = `radial-gradient(circle at 30% 30%, hsl(${hue}, 60%, 60%), hsl(${hue}, 70%, 40%))`;
+            el.textContent = colony.traitValue.toFixed(0);
+
+            colony.element = el;
+            rightShelf.appendChild(el);
+
+            // Setup click to select for breeding
+            el.addEventListener('click', () => {
+                colony.selected = !colony.selected;
+                el.classList.toggle('selected', colony.selected);
+                updateBreedButton();
+            });
+
+            updateBreedButton();
+        }
+
+        function updateBreedButton() {
+            const selected = colonies.filter(c => c.selected);
+            breedBtn.textContent = `Breed Selected (${selected.length})`;
+            breedBtn.disabled = selected.length < 1;
+        }
+
+        function breedNextGeneration() {
+            const selected = colonies.filter(c => c.selected);
+            if (selected.length === 0) return;
+
+            // Record history
+            const measuredColonies = colonies.filter(c => c.measured);
+            const avg = measuredColonies.length > 0
+                ? measuredColonies.reduce((sum, c) => sum + c.traitValue, 0) / measuredColonies.length
+                : 0;
+
+            generationHistory.push({
+                generation,
+                avgTrait: avg,
+                bestTrait: Math.max(...selected.map(c => c.traitValue)),
+                selectedCount: selected.length
+            });
+
+            updateHistory();
+
+            // Clear current colonies
+            colonies = [];
+            queuedForExperiment = [];
+            leftShelf.innerHTML = '';
+            rightShelf.innerHTML = '';
+            incubatorSlots.innerHTML = '';
+            measurerSlots.innerHTML = '';
+
+            // Create new generation from selected parents
+            generation++;
+            document.getElementById('generation').textContent = generation;
+
+            // Each selected parent produces offspring
+            const offspringPerParent = Math.ceil(INITIAL_COLONY_COUNT / selected.length);
+
+            selected.forEach(parent => {
+                for (let i = 0; i < offspringPerParent && colonies.length < INITIAL_COLONY_COUNT; i++) {
+                    createPlate(parent.traitValue);
+                }
+            });
+
+            updateBreedButton();
+            updateQueueCounter();
+        }
+
+        function updateHistory() {
+            const historyDiv = document.getElementById('history');
+            historyDiv.innerHTML = generationHistory.map(h => `
+                <div class="history-entry">
+                    <strong>Gen ${h.generation}:</strong>
+                    Avg: ${h.avgTrait.toFixed(1)},
+                    Best: ${h.bestTrait.toFixed(1)}
+                </div>
+            `).join('');
+        }
+
+        // Event listeners
+        breedBtn.addEventListener('click', breedNextGeneration);
+        startAutoBtn.addEventListener('click', startAutomatedExperiment);
+
+        // Initialize
+        setupConditionUI();
+        init();
+    </script>
+</body>
+</html>
